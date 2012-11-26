@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.StringTokenizer;
@@ -22,6 +23,13 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.lucene.analysis.PorterStemFilter;
+import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.util.Version;
+import org.apache.lucene.wikipedia.analysis.WikipediaTokenizer;
 
 public class Indexer {
 
@@ -40,6 +48,7 @@ public class Indexer {
 		private int docId;
 		private String title = "";
         private HashSet<String> stopwordset=new HashSet<String>();
+        private StringBuffer sb=new StringBuffer();
         
 		private boolean checkPage(boolean isStart) {
 			return false;
@@ -107,8 +116,23 @@ public class Indexer {
 			super.cleanup(context);
 		}
 
+		private void wikiTokenizer(Context context) throws IOException, InterruptedException{
+			TokenStream tokenStream = new WikipediaTokenizer(new StringReader(sb.toString()));
+			
+			tokenStream = new StopFilter(Version.LUCENE_36, tokenStream, stopwordset);
+			tokenStream = new PorterStemFilter(tokenStream);
+			CharTermAttribute termAtt = tokenStream
+					.addAttribute(CharTermAttribute.class);
+			TypeAttribute typeAtt = tokenStream.addAttribute(TypeAttribute.class);
+			while (tokenStream.incrementToken()) {
+				context.write(new LongWritable(1), new Text(termAtt.toString() + ":" + typeAtt.type()));
+//				System.out.println(termAtt.toString() + ":" + typeAtt.type());
+			}
+
+			tokenStream.close();
+			
+		}
 		@Override
-		
 		protected void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
 			Pattern pattern = null;
@@ -139,23 +163,27 @@ public class Indexer {
 				title = "";
 				docId = 0;
 				isTextBegin = false;
-
+				wikiTokenizer(context);
+                sb=new StringBuffer();
 			} else {
-				StringTokenizer tokens = new StringTokenizer(line);
-				String token;
-				while (tokens.hasMoreTokens()) {
-					token = tokens.nextToken();
-					if(stopwordset.contains(token)){
-						continue;
-					}
-					//include wiki bold token
-					else if(token.startsWith(Constant.WIKI_BOLD)&&token.endsWith(Constant.WIKI_BOLD)){
-						context.write(key,new Text(token.substring(3,token.length()-3)));
-					}
-					else if (isOnlyContainLetter(token)){
-						context.write(key, new Text(token));}
-				}
-				context.write(key, new Text(line));
+				
+				sb.append(line+" ");
+				
+//				StringTokenizer tokens = new StringTokenizer(line);
+//				String token;
+//				while (tokens.hasMoreTokens()) {
+//					token = tokens.nextToken();
+//					if(stopwordset.contains(token)){
+//						continue;
+//					}
+//					//include wiki bold token
+//					else if(token.startsWith(Constant.WIKI_BOLD)&&token.endsWith(Constant.WIKI_BOLD)){
+//						context.write(key,new Text(token.substring(3,token.length()-3)));
+//					}
+//					else if (isOnlyContainLetter(token)){
+//						context.write(key, new Text(token));}
+//				}
+//				context.write(key, new Text(line));
 			}
 
 		}
