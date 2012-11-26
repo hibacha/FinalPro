@@ -13,7 +13,7 @@ public class Constant {
 	public static final String REGEX_ID="<(id)>([\\d]+)</\\1>";
 	public static final String TEXT_MARK="<text";
 	public static final String TEXT_TERMINATOR="</text>";
-	
+	public static final String WIKI_BOLD="'''";
 	public static final List<String> stopWords = Arrays.asList(
 		      "a", "an", "and", "are", "as", "at", "be", "but", "by",
 		      "for", "if", "in", "into", "is", "it",

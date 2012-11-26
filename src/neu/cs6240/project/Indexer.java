@@ -88,19 +88,16 @@ public class Indexer {
 				InterruptedException {
 			Path[] paths = DistributedCache.getLocalCacheFiles(context
 					.getConfiguration());
+			stopwordset.addAll(Constant.stopWords);
 			for (Path p : paths) {
 				if (p.toString().indexOf("stopword") >= 0) {
 					String header = getCacheFileContent(p.toString()).get(0);
 				   String[] words=header.split(",");
-				   stopwordset.addAll(Constant.stopWords);
 				   for(String word:words){
 					   stopwordset.add(word);
 				   }
 				} 
-				context.write(new LongWritable(1), new Text(p.toString()));
 			}
-			
-
 		}
 
 		@Override
@@ -111,6 +108,7 @@ public class Indexer {
 		}
 
 		@Override
+		
 		protected void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
 			Pattern pattern = null;
@@ -150,9 +148,12 @@ public class Indexer {
 					if(stopwordset.contains(token)){
 						continue;
 					}
-					else if (isOnlyContainLetter(token))
-						context.write(key, new Text(token));
-
+					//include wiki bold token
+					else if(token.startsWith(Constant.WIKI_BOLD)&&token.endsWith(Constant.WIKI_BOLD)){
+						context.write(key,new Text(token.substring(3,token.length()-3)));
+					}
+					else if (isOnlyContainLetter(token)){
+						context.write(key, new Text(token));}
 				}
 				context.write(key, new Text(line));
 			}
