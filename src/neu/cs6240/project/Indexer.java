@@ -6,8 +6,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.StringTokenizer;
+import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +20,8 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -40,37 +44,22 @@ public class Indexer {
 	public static final String FILE = "/Users/zhouyf/Stack/cs6240/FinalProject/rawdata/sample.txt";
 
 	public static class IndexMapper extends
-			Mapper<LongWritable, Text, LongWritable, Text> {
+			Mapper<LongWritable, Text, Text, LongWritable> {
 
 		private boolean isPageBegin = false;
 		private boolean isTextBegin = false;
-		
-		private int docId;
+
+		private long docId=0;
 		private String title = "";
-        private HashSet<String> stopwordset=new HashSet<String>();
-        private StringBuffer sb=new StringBuffer();
-        
-		private boolean checkPage(boolean isStart) {
-			return false;
-		}
+		private HashSet<String> stopwordset = new HashSet<String>();
+		private StringBuffer sb = new StringBuffer();
 
-		private void parseDocId() {
-
-		}
-
-		private void searchText() {
-
-		}
-
-		private void preprocess(String line) {
-
-		}
+		private int counter = 0;
 
 		private boolean terminate(String line) {
 			return line.endsWith(Constant.TEXT_TERMINATOR);
 		}
 
-		
 		private ArrayList<String> getCacheFileContent(String localPath)
 				throws IOException {
 
@@ -88,6 +77,7 @@ public class Indexer {
 			}
 			return rst;
 		}
+
 		@Override
 		/**
 		 * read from cache to get header
@@ -101,11 +91,11 @@ public class Indexer {
 			for (Path p : paths) {
 				if (p.toString().indexOf("stopword") >= 0) {
 					String header = getCacheFileContent(p.toString()).get(0);
-				   String[] words=header.split(",");
-				   for(String word:words){
-					   stopwordset.add(word);
-				   }
-				} 
+					String[] words = header.split(",");
+					for (String word : words) {
+						stopwordset.add(word);
+					}
+				}
 			}
 		}
 
@@ -116,22 +106,31 @@ public class Indexer {
 			super.cleanup(context);
 		}
 
-		private void wikiTokenizer(Context context) throws IOException, InterruptedException{
-			TokenStream tokenStream = new WikipediaTokenizer(new StringReader(sb.toString()));
-			
-			tokenStream = new StopFilter(Version.LUCENE_36, tokenStream, stopwordset);
+		private void wikiTokenizer(Context context) throws IOException,
+				InterruptedException {
+			TokenStream tokenStream = new WikipediaTokenizer(new StringReader(
+					sb.toString()));
+
+			tokenStream = new StopFilter(Version.LUCENE_36, tokenStream,
+					stopwordset);
 			tokenStream = new PorterStemFilter(tokenStream);
 			CharTermAttribute termAtt = tokenStream
 					.addAttribute(CharTermAttribute.class);
-			TypeAttribute typeAtt = tokenStream.addAttribute(TypeAttribute.class);
+			TypeAttribute typeAtt = tokenStream
+					.addAttribute(TypeAttribute.class);
 			while (tokenStream.incrementToken()) {
-				context.write(new LongWritable(1), new Text(termAtt.toString() + ":" + typeAtt.type()));
-//				System.out.println(termAtt.toString() + ":" + typeAtt.type());
-			}
+				String term = termAtt.toString();
 
+				if (isOnlyContainLetter(term)) {
+					// TODO analyze term's type using typeAtt
+					context.write(new Text(termAtt.toString()),
+							new LongWritable(docId));
+				}
+			}
+			context.write(new Text(title), new LongWritable(docId));
 			tokenStream.close();
-			
 		}
+
 		@Override
 		protected void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
@@ -159,43 +158,44 @@ public class Indexer {
 					isTextBegin = true;
 
 			} else if (terminate(line)) {
+				wikiTokenizer(context);
+				//reset all flag to initial status
 				isPageBegin = false;
 				title = "";
 				docId = 0;
 				isTextBegin = false;
-				wikiTokenizer(context);
-                sb=new StringBuffer();
+				sb = new StringBuffer();
 			} else {
-				
-				sb.append(line+" ");
-				
-//				StringTokenizer tokens = new StringTokenizer(line);
-//				String token;
-//				while (tokens.hasMoreTokens()) {
-//					token = tokens.nextToken();
-//					if(stopwordset.contains(token)){
-//						continue;
-//					}
-//					//include wiki bold token
-//					else if(token.startsWith(Constant.WIKI_BOLD)&&token.endsWith(Constant.WIKI_BOLD)){
-//						context.write(key,new Text(token.substring(3,token.length()-3)));
-//					}
-//					else if (isOnlyContainLetter(token)){
-//						context.write(key, new Text(token));}
-//				}
-//				context.write(key, new Text(line));
+
+				sb.append(line + " ");
+
+				// StringTokenizer tokens = new StringTokenizer(line);
+				// String token;
+				// while (tokens.hasMoreTokens()) {
+				// token = tokens.nextToken();
+				// if(stopwordset.contains(token)){
+				// continue;
+				// }
+				// //include wiki bold token
+				// else
+				// if(token.startsWith(Constant.WIKI_BOLD)&&token.endsWith(Constant.WIKI_BOLD)){
+				// context.write(key,new
+				// Text(token.substring(3,token.length()-3)));
+				// }
+				// else if (isOnlyContainLetter(token)){
+				// context.write(key, new Text(token));}
+				// }
+				// context.write(key, new Text(line));
 			}
 
 		}
-		
-		private boolean isStopWord(String token){
-			return false;
-		}
-        /**
-         * eliminate non-English word
-         * @param token
-         * @return
-         */
+
+		/**
+		 * eliminate non-English word
+		 * 
+		 * @param token
+		 * @return
+		 */
 		private boolean isOnlyContainLetter(String token) {
 			boolean flag = true;
 			for (int i = 0; i < token.length(); i++) {
@@ -207,6 +207,39 @@ public class Indexer {
 			}
 			return flag;
 		}
+	}
+
+	public static class Reduce extends Reducer<Text, LongWritable, Text, Text> {
+
+		private Hashtable<Long, Long> hashtable = new Hashtable<Long, Long>();
+
+		@Override
+		protected void reduce(Text term, Iterable<LongWritable> values,
+				Context context) throws IOException, InterruptedException {
+			Hashtable<Long, Long> hashtable = new Hashtable<Long, Long>();
+			Iterator<LongWritable> doIds = values.iterator();
+			// TODO memory efficiency
+			
+			while (doIds.hasNext()) {
+				LongWritable id = doIds.next();
+				if (hashtable.get(new Long(id.get()))==null) {
+					hashtable.put(id.get(), 1L);
+				} else {
+					long count = hashtable.get(id.get()).longValue();
+					count++;
+					hashtable.put(id.get(), new Long(count));
+				}
+			}
+			Enumeration<Long> enumberator = hashtable.keys();
+			while (enumberator.hasMoreElements()) {
+				Long docId = enumberator.nextElement();
+				context.write(term,
+						new Text(docId.toString() + ":" + hashtable.get(docId)));
+			}
+			
+			hashtable = new Hashtable<Long, Long>();
+		}
+
 	}
 
 	public static void main(String[] args) throws IOException,
@@ -222,9 +255,10 @@ public class Indexer {
 		// user-specific argument
 		String[] otherArgs = optionParser.getRemainingArgs();
 		job.setMapperClass(IndexMapper.class);
-
-		job.setOutputKeyClass(LongWritable.class);
-		job.setOutputValueClass(Text.class);
+        job.setReducerClass(Reduce.class);
+        
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(LongWritable.class);
 
 		job.setInputFormatClass(TextInputFormat.class);
 		job.setOutputFormatClass(TextOutputFormat.class);
@@ -232,7 +266,9 @@ public class Indexer {
 
 		FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
 		FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
-        DistributedCache.addCacheFile(new Path(otherArgs[2]).toUri(), job.getConfiguration());
+		// must get configuration from job
+		DistributedCache.addCacheFile(new Path(otherArgs[2]).toUri(),
+				job.getConfiguration());
 		System.exit(job.waitForCompletion(true) ? 0 : 1);
 
 	}

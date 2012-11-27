@@ -3,6 +3,7 @@ package neu.cs6240.project;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Set;
 
 import org.apache.lucene.analysis.PorterStemFilter;
@@ -46,5 +47,24 @@ public class IndexRun {
 		}
 
 		tokenStream.close();
+		Hashtable<Long, Long> hashtable = new Hashtable<Long, Long>();
+		Long long1=new Long(90L);
+		Long long2=new Long(90L);
+		if(hashtable.get(long1)==null){
+			hashtable.put(long1, 1L);
+		}
+		
+		if(hashtable.get(long1)==null){
+			hashtable.put(long1, 1L);
+		}else{
+			
+			hashtable.put(long1, hashtable.get(long1)+5);
+		}
+		System.out.println(hashtable.get(long2));
 	}
+	
+	
+	
+	
+	
 }

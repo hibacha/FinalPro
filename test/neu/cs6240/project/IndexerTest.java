@@ -1,6 +1,7 @@
 package neu.cs6240.project;
 
-import static org.junit.Assert.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.After;
 import org.junit.Before;
@@ -18,7 +19,12 @@ public class IndexerTest {
 
 	@Test
 	public void test() {
-		fail("Not yet implemented");
+		
+		Pattern pattern=Pattern.compile("<(title)>([\\w]+)</\\1>");
+		Matcher match=pattern.matcher("<title>anti</title>");
+		
+		match.find();
+		System.out.println(match.group(2));
+		
 	}
-
 }
