@@ -33,7 +33,8 @@ public class IndexRun {
 				+ "[[political philosophy]] which "
 				+ "holds the [[state (polity)|state]] to "
 				+ "be undesirable, unnecessary, "
-				+ "or harmful,&lt;ref name=&quot;definition&quot;&gt;";
+				+ "or harmful,&lt;ref name=&quot;definition&quot;&gt;"
+				+"{{cite web|url=http://www.britannica.com/eb/article-9117285|title=Anarchism|year=2006|work=Encyclop¾dia Britannica|publisher=Encyclop¾dia Britannica Premium Service|accessdate=29 August 2006| archiveurl= http://web.archive.org/web/20061214085638/http://www.britannica.com/eb/article-9117285| archivedate= 14 December 2006&lt;!--Added by DASHBot--&gt;}}";
 		
 		TokenStream tokenStream = new WikipediaTokenizer(new StringReader(test));
 		
