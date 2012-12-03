@@ -8,9 +8,10 @@ public class Constant {
 	/**
 	 * @param args
 	 */
+	public static final long INIT_DOCID=-1;
 	public static final String PAGE_MARK="page";
-	public static final String REGEX_TITLE="<(title)>([\\w]+)</\\1>";
-	public static final String REGEX_ID="<(id)>([\\d]+)</\\1>";
+	public static final String REGEX_TITLE="<(title)>(.*)</\\1>";
+	public static final String REGEX_ID="<(id)>(.*)</\\1>";
 	public static final String TEXT_MARK="<text";
 	public static final String TEXT_TERMINATOR="</text>";
 	public static final String WIKI_BOLD="'''";

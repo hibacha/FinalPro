@@ -33,23 +33,28 @@ import org.apache.lucene.util.Version;
 import org.apache.lucene.wikipedia.analysis.WikipediaTokenizer;
 
 public class LocalIndexer {
-	// public static final String FILE =
-	// "/Users/zhouyf/Stack/cs6240/FinalProject/rawdata/enwiki-20121101-pages-articles1.xml-p000000010p000010000";
-	// public static final String STOPWORDS_FILE_PATH =
-	// "/Users/zhouyf/Stack/cs6240/FinalProject/rawdata/stopword.txt";
 	private boolean isPageBegin = false;
 	private boolean isTextBegin = false;
-	// private static final String OUTPUT_FILE =
-	// "/Users/zhouyf/Stack/cs6240/FinalProject/rawdata/result.txt";
-
-	private long docId = 0;
+    
+	//store document id
+	private long docId = Constant.INIT_DOCID;
+	
+	//store document title
 	private String title = "";
+	
+	//store stop word into hash set
 	private HashSet<String> stopwordset = new HashSet<String>();
+	
+	//store the wiki page content in buffer
 	private StringBuffer pageBuffer = new StringBuffer();
+
+	//writer for generating result
 	private BufferedWriter writer = null;
 
 	private String inputDir;
 	private String outputDir;
+	
+	//file path of stop words 
 	private String stopwordsFile;
 	private List<File> inputFileList = new ArrayList<File>();
 
@@ -67,6 +72,7 @@ public class LocalIndexer {
 
 	private void init() throws Exception {
 
+		formalizeOutputDir();
 		initInputFileList();
 		generateStopWordsSet();
 		checkOutputDir();
@@ -74,11 +80,19 @@ public class LocalIndexer {
 		generateWriter();
 	}
 
+	private void formalizeOutputDir() {
+		// TODO check outputDir has end separator
+		String seperator = System.getProperty("file.separator");
+		if (!outputDir.endsWith(seperator)) {
+			outputDir += seperator;
+		}
+	}
+
 	private void initInputFileList() throws FileNotFoundException {
 		File inputBase = new File(inputDir);
 		// check if input file or directory exists
 		if (!inputBase.exists()) {
-			throw new FileNotFoundException();
+			throw new FileNotFoundException("Sorry! Input Path is not valid!");
 		}
 		if (inputBase.isFile()) {
 			inputFileList.add(inputBase);
@@ -99,16 +113,14 @@ public class LocalIndexer {
 
 	private void generateWriter() throws IOException {
 
+		if (inputFileList.size() == 0)
+			return;
+		String newFilePath = "";
 		File tail = inputFileList.get(inputFileList.size() - 1);
 		String fileName = tail.getName();
 
-		// TODO check outputDir has end seperator
-		String seperator = System.getProperty("file.separator");
-		if (!outputDir.endsWith(seperator)) {
-			outputDir += seperator;
-		}
-		outputDir = outputDir + fileName + ".rst";
-		File outputFile = new File(outputDir);
+		newFilePath = outputDir + fileName + ".rst";
+		File outputFile = new File(newFilePath);
 		if (!outputFile.exists()) {
 			outputFile.createNewFile();
 		}
@@ -160,7 +172,7 @@ public class LocalIndexer {
 				if (!type.equals(WikipediaTokenizer.INTERNAL_LINK)
 						&& !type.equals(WikipediaTokenizer.CITATION)
 						&& !type.equals(WikipediaTokenizer.EXTERNAL_LINK)) {
-					addCount(hashCount, term + "@" + typeAtt.type());
+					addCount(hashCount, term);
 				}
 			}
 		}
@@ -198,7 +210,7 @@ public class LocalIndexer {
 				pageBuffer.append(title + " ");
 			}
 
-		} else if (docId == -1) {
+		} else if (docId == Constant.INIT_DOCID) {
 			pattern = Pattern.compile(Constant.REGEX_ID);
 			Matcher matcher = pattern.matcher(line);
 			if (matcher.find()) {
@@ -210,6 +222,9 @@ public class LocalIndexer {
 				isTextBegin = true;
 			} else if (line.startsWith(Constant.TEXT_MARK) && terminate(line)) {
 				// indicating one line text content, we can discard
+				
+				//scan only for title
+				scanWikiXML();
 				resetFlag();
 			}
 
@@ -226,7 +241,7 @@ public class LocalIndexer {
 	private void resetFlag() {
 		isPageBegin = false;
 		title = "";
-		docId = -1;
+		docId = Constant.INIT_DOCID;
 		isTextBegin = false;
 		pageBuffer = new StringBuffer();
 		System.gc();
@@ -254,13 +269,13 @@ public class LocalIndexer {
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				checkLine(line);
-				// TODO delete
-				System.out.println(line);
 			}
+			//close previous buffer writer to make sure remaining flush to file
+			writer.close();
 			generateWriter();
 		}
 		reader.close();
-		writer.close();
+		
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -277,7 +292,7 @@ public class LocalIndexer {
 		@SuppressWarnings("static-access")
 		Option stop = OptionBuilder.hasArg().withArgName("Stop File Name")
 				.withLongOpt("stopword")
-				.withDescription("specify file containing stop words ")
+				.withDescription("Optional. specify file containing stop words ")
 				.create("s");
 
 		@SuppressWarnings("static-access")
@@ -289,14 +304,20 @@ public class LocalIndexer {
 				.withDescription(
 						"specify the output directory for all input xml file")
 				.create("o");
-
-		options.addOption(stop).addOption(dir).addOption(output);
+        
+		@SuppressWarnings("static-access")
+		Option help=OptionBuilder.hasArg(false).withLongOpt("help").withDescription("show help").create("h");
+		
+		options.addOption(stop).addOption(dir).addOption(output).addOption(help);
 		try {
 			CommandLine commandline = line.parse(options, args);
 			String inputDir = "";
 			String outputDir = "";
 			String stopwordFile = "";
 			// parse begin
+			if(commandline.hasOption("h")){
+				throw new ParseException("for invoking help printer");
+			}
 			if (commandline.hasOption("s")) {
 				stopwordFile = commandline.getOptionValue("s");
 			}
@@ -306,17 +327,12 @@ public class LocalIndexer {
 			LocalIndexer indexer = new LocalIndexer(inputDir, outputDir,
 					stopwordFile);
 			indexer.run();
-			
+
 		} catch (ParseException e) {
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.printHelp("LocalIndexer", options);
 
 		}
 
-		String currentDir = System.getProperty("user.dir");
-
-		System.out.println(currentDir);
-		// LocalIndexer indexer = new LocalIndexer();
-		// indexer.run();
 	}
 }

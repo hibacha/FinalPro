@@ -36,7 +36,7 @@ public class IndexerTest {
 	public void test() {
 		
 		
-		Pattern pattern=Pattern.compile("<(title)>([\\w]+)</\\1>");
+		Pattern pattern=Pattern.compile("<(title)>(.*)</\\1>");
 		Matcher match=pattern.matcher("<title>anti</title>");
 		
 		match.find();
