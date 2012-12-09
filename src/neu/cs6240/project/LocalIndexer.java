@@ -40,7 +40,7 @@ public class LocalIndexer {
 	private long docId = Constant.INIT_DOCID;
 	
 	//store document title
-	private String title = "";
+	private String title = ""; 
 	
 	//store stop word into hash set
 	private HashSet<String> stopwordset = new HashSet<String>();
