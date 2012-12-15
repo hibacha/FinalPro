@@ -6,6 +6,7 @@ import java.util.List;
 public class Constant {
 
 	/**
+	 * 
 	 * @param args
 	 */
 	public static final long INIT_DOCID=-1;
